@@ -1,0 +1,36 @@
+{
+  "common": {
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "loading": "Loading...",
+    "error": "Error"
+  },
+  "home": {
+    "title": "AI Smart Search",
+    "subtitle": "Multi-round Search + AI Analysis = Deep Research",
+    "placeholder": "What would you like to know?"
+  },
+  "search": {
+    "button": "Search",
+    "searching": "Searching...",
+    "clarify_title": "To better answer your question, please select:",
+    "loading_title": "AI is researching",
+    "loading_tips": "We search multiple sources and analyze the information",
+    "duration": "Search duration: {{seconds}}s"
+  },
+  "result": {
+    "report_title": "📄 Research Report",
+    "findings_title": "💡 Key Findings",
+    "sources_title": "📚 Sources",
+    "source": "Source",
+    "confidence": "Confidence",
+    "confidence_high": "High",
+    "confidence_medium": "Medium",
+    "confidence_low": "Low"
+  },
+  "error": {
+    "empty_query": "Please enter a search query",
+    "network_error": "Network request failed, please try again later",
+    "server_error": "Internal server error"
+  }
+}

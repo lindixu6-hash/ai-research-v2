@@ -1,0 +1,27 @@
+{
+  "name": "ai-search-frontend",
+  "version": "1.0.0",
+  "description": "AI 搜索引擎前端页面",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "clsx": "^2.1.1",
+    "framer-motion": "^10.18.0",
+    "i18next": "^23.16.8",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-i18next": "^13.5.0",
+    "react-markdown": "^10.1.0",
+    "rehype-raw": "^7.0.0",
+    "remark-gfm": "^4.0.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.2.0",
+    "vite": "^5.0.0"
+  }
+}

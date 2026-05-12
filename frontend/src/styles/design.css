@@ -1,0 +1,96 @@
+/**
+ * 设计变量 - 基于 DESIGN.md 版本 C（Claude 风）
+ * 所有组件必须使用这些变量，禁止硬编码
+ */
+
+:root {
+  /* ===== 莫兰迪色盘 ===== */
+  --gray-50:  #FAFAF8;
+  --gray-100: #F5F5F2;
+  --gray-200: #E8E8E3;
+  --gray-300: #D4D4CD;
+  --gray-400: #A3A399;
+  --gray-500: #73736A;
+  --gray-600: #5C5C54;
+  --gray-700: #3C3C36;
+  --gray-800: #2B2B27;
+  --gray-900: #1A1A18;
+
+  /* 主色 */
+  --primary-50:  #E8F0F0;
+  --primary-100: #D0E0E0;
+  --primary-400: #7BA0A0;
+  --primary-500: #5C8585;
+  --primary-600: #4A6B6B;
+  --primary-700: #3D5757;
+
+  /* 强调色 */
+  --accent-amber: #C4A77D;
+  --accent-rose:  #C48A8A;
+  --accent-sage:  #8AA090;
+
+  /* 语义色 */
+  --success: #7A9B7A;
+  --warning: #C4A77D;
+  --error:   #B87A7A;
+  --info:    #7A95A0;
+
+  /* 背景 */
+  --bg-primary:   #FAFAF8;
+  --bg-secondary: #F0EFE8;
+  --bg-tertiary:  #E8E8E0;
+  --bg-elevated:  #FFFFFF;
+  --bg-glow:      rgba(92, 133, 133, 0.08);
+
+  /* 文字 */
+  --text-primary:   #1A1A18;
+  --text-secondary: #5C5C54;
+  --text-tertiary:  #8A8A80;
+  --text-accent:    #5C8585;
+  --text-inverse:   #FFFFFF;
+
+  /* 科技感 */
+  --primary-gradient: linear-gradient(135deg, #5C8585 0%, #7BA0A0 100%);
+  --tech-glow: 0 0 20px rgba(92, 133, 133, 0.15);
+
+  /* 字体 */
+  --font-sans: -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --font-mono: "SF Mono", Consolas, "Andale Mono", monospace;
+
+  /* 字号 */
+  --text-xs:   12px;
+  --text-sm:   14px;
+  --text-base: 16px;
+  --text-lg:   18px;
+  --text-xl:   24px;
+  --text-2xl:  32px;
+  --text-3xl:  48px;
+
+  /* 间距 */
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  20px;
+  --space-6:  24px;
+  --space-8:  32px;
+  --space-10: 40px;
+
+  /* 圆角 */
+  --radius-sm:  4px;
+  --radius-md:  8px;
+  --radius-lg:  12px;
+  --radius-xl:  20px;
+  --radius-full: 9999px;
+
+  /* 阴影 */
+  --shadow-xs:  0 1px 2px rgba(26,26,24,0.04);
+  --shadow-sm:  0 2px 4px rgba(26,26,24,0.06);
+  --shadow-md:  0 4px 12px rgba(26,26,24,0.08);
+  --shadow-lg:  0 8px 24px rgba(26,26,24,0.10);
+  --shadow-xl:  0 16px 48px rgba(26,26,24,0.12);
+
+  /* 缓动 */
+  --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+}

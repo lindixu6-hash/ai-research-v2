@@ -1,0 +1,42 @@
+{
+  "common": {
+    "confirm": "确认",
+    "cancel": "取消",
+    "loading": "加载中...",
+    "error": "出错了"
+  },
+  "home": {
+    "title": "AI 智能搜索",
+    "subtitle": "多轮搜索 + 智能分析 = 深度研究",
+    "placeholder": "输入你想了解的问题..."
+  },
+  "search": {
+    "button": "搜索",
+    "searching": "搜索中...",
+    "clarify_title": "为了更准确地回答，请选择：",
+    "loading_title": "AI正在研究中",
+    "loading_tips": "我们会搜索多个来源，然后分析和提炼信息",
+    "duration": "搜索耗时：{{seconds}} 秒"
+  },
+  "activities": {
+    "title": "📋 搜索进度",
+    "export": "导出",
+    "share": "分享",
+    "copied": "已复制"
+  },
+  "result": {
+    "report_title": "📄 研究报告",
+    "findings_title": "💡 关键发现",
+    "sources_title": "📚 信息来源",
+    "source": "来源",
+    "confidence": "可信度",
+    "confidence_high": "高",
+    "confidence_medium": "中",
+    "confidence_low": "低"
+  },
+  "error": {
+    "empty_query": "请输入搜索问题",
+    "network_error": "网络请求失败，请稍后重试",
+    "server_error": "服务器内部错误"
+  }
+}
