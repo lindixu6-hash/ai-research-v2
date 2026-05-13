@@ -1,10 +1,12 @@
 # 🤖 AI 搜索引擎
 
-> 完整展示搜索流程、标注来源、生成结构化报告
+**完整展示搜索流程、标注来源、生成结构化报告**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
 [![React](https://img.shields.io/badge/React-18+-blue.svg)](https://reactjs.org/)
+
+---
 
 ## ✨ 特性
 
