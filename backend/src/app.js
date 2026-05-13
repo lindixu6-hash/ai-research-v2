@@ -2,7 +2,7 @@
  * AI搜索后端服务入口
  * 功能：提供API接口，协调Agent工作流，处理搜索请求
  */
-require('dotenv').config({ path: __dirname + '/.env' });
+require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
 const express = require('express');
 const cors = require('cors');
 

@@ -98,8 +98,12 @@ router.post('/stream', async (req, res) => {
       message: `生成了 ${searchResult.queries.length} 个搜索关键词`
     });
 
-    // ===== 第4步：执行搜索 =====
+    // ===== 第4步：执行搜索（带结果验证）=====
     const allResults = [];
+    let totalSearched = 0;
+    let totalValid = 0;
+    let totalInvalid = 0;
+
     for (let i = 0; i < searchResult.queries.length; i++) {
       const q = searchResult.queries[i];
       sendEvent('step', {
@@ -113,7 +117,22 @@ router.post('/stream', async (req, res) => {
 
       const result = await search(q);
 
-      if (result.success) {
+      if (result.success && result.results) {
+        totalSearched += result.results.length;
+
+        // 显示验证统计
+        if (result.validation) {
+          totalValid += result.validation.validCount;
+          totalInvalid += result.validation.invalidCount;
+          sendEvent('validation', {
+            query: q,
+            total: result.validation.total,
+            valid: result.validation.validCount,
+            invalid: result.validation.invalidCount,
+            message: `验证: ${result.validation.validCount}/${result.validation.total} 条有效`
+          });
+        }
+
         allResults.push(...result.results);
         sendEvent('search_result', {
           query: q,
@@ -128,8 +147,13 @@ router.post('/stream', async (req, res) => {
 
     sendEvent('step', {
       step: 'search_done',
-      message: `搜索完成，找到 ${allResults.length} 条结果`,
-      timestamp: Date.now()
+      message: `搜索完成，找到 ${allResults.length} 条有效结果（验证过滤了 ${totalInvalid} 条无效）`,
+      timestamp: Date.now(),
+      stats: {
+        total: totalSearched,
+        valid: totalValid,
+        invalid: totalInvalid
+      }
     });
 
     // ===== 第5步：分析提取 =====

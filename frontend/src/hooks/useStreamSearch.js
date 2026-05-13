@@ -279,6 +279,15 @@ export function useStreamSearch() {
         });
         break;
 
+      case 'validation':
+        addActivity({
+          type: 'validation',
+          message: data.message,
+          icon: '✅',
+          details: `有效: ${data.valid}/${data.total}`
+        });
+        break;
+
       case 'clarify':
         // 单问题渐进式澄清（不显示在活动流）
         if (data.question) {
