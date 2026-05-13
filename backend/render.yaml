@@ -1,0 +1,23 @@
+# Render 部署配置
+services:
+  - type: web
+    name: ai-search-backend
+    env: node
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: 3000
+      - key: NODE_ENV
+        value: production
+      - key: SEARCH_API_KEY
+        value: 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
+      - key: SEARCH_API_URL
+        value: https://api.tavily.com/search
+      - key: OPENAI_API_KEY
+        value: sk-8dJXP1xxQj2lYNpmodZTU4JkTQFIBstiHKKsPuEOA50zPedp
+      - key: OPENAI_BASE_URL
+        value: https://api.moonshot.cn/v1
+      - key: MODEL_NAME
+        value: moonshot-v1-128k
