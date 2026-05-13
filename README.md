@@ -1,6 +1,6 @@
 # 🤖 AI 搜索引擎
 
-> 基于 AI Agent 的智能搜索系统，支持联网搜索、多轮对话、流式输出
+> 完整展示搜索流程、标注来源、生成结构化报告
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
@@ -12,7 +12,6 @@
 - 🧠 **AI 驱动分析** - 使用 Kimi/Moonshot 大模型深度分析搜索结果
 - 💬 **多轮对话** - 支持澄清问题，逐步理解用户需求
 - 📡 **流式输出** - 实时展示 AI 思考过程，更好的用户体验
-- 🌍 **多语言支持** - 中英文界面切换
 - 🎨 **现代化 UI** - 基于 React + Vite 构建的响应式界面
 
 ## 🏗️ 项目架构
