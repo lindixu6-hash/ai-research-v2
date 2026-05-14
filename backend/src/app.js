@@ -10,7 +10,13 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // 中间件配置
-app.use(cors());           // 允许前端跨域访问
+// CORS 配置：允许所有来源（生产环境可限制具体域名）
+const corsOptions = {
+  origin: ['https://ai-search-project.vercel.app', 'http://localhost:5173', 'http://127.0.0.1:5173'],
+  credentials: true,
+  optionsSuccessStatus: 200
+};
+app.use(cors(corsOptions));
 app.use(express.json());   // 解析JSON请求体
 
 // 日志中间件（记录每个请求）
@@ -49,12 +55,12 @@ app.use((err, req, res, next) => {
   });
 });
 
-// 启动服务
-app.listen(PORT, () => {
+// 启动服务（监听所有网络接口，以便从外部访问）
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n` + `=`.repeat(50));
   console.log(`🚀 AI搜索服务启动成功！`);
   console.log(`=`.repeat(50));
-  console.log(`📍 服务地址: http://localhost:${PORT}`);
+  console.log(`📍 服务地址: http://0.0.0.0:${PORT}`);
   console.log(`🔍 健康检查: http://localhost:${PORT}/health`);
   console.log(`📚 API文档: POST http://localhost:${PORT}/api/search`);
   console.log(`=`.repeat(50) + `\n`);
