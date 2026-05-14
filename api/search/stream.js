@@ -1,51 +1,56 @@
-// Vercel Serverless 函数：专门处理流式搜索请求
-export default async function handler(req, res) {
+// Vercel Edge Function：代理后端流式 API
+export const config = {
+  runtime: 'edge',
+};
+
+export default async function handler(request) {
   // 处理 CORS 预检请求
-  if (req.method === 'OPTIONS') {
-    res.setHeader('Access-Control-Allow-Credentials', true);
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,POST');
-    res.setHeader(
-      'Access-Control-Allow-Headers',
-      'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, X-Skip-Clarify, X-Clarify-Answers'
-    );
-    return res.status(200).end();
+  if (request.method === 'OPTIONS') {
+    return new Response(null, {
+      status: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET,OPTIONS,POST',
+        'Access-Control-Allow-Headers': 'Content-Type, X-Skip-Clarify, X-Clarify-Answers',
+      }
+    });
   }
 
-  // 构建后端 URL
-  const backendUrl = `http://47.86.191.93:3000/api/search/stream`;
+  // 只支持 POST 请求
+  if (request.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
+  const backendUrl = 'http://47.86.191.93:3000/api/search/stream';
 
   try {
-    const backendReq = await fetch(backendUrl, {
+    const body = await request.json();
+
+    const backendResponse = await fetch(backendUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(req.body)
+      body: JSON.stringify(body)
     });
 
-    // 设置 SSE 响应头
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    res.setHeader('Access-Control-Allow-Origin', '*');
+    // 返回流式响应
+    return new Response(backendResponse.body, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        'Access-Control-Allow-Origin': '*',
+      }
+    });
 
-    // 流式转发
-    const reader = backendReq.body.getReader();
-    const decoder = new TextDecoder();
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      res.write(decoder.decode(value));
-    }
-    res.end();
   } catch (error) {
-    console.error('代理错误:', error);
-    res.status(500).json({ error: '代理请求失败', message: error.message });
+    return new Response(JSON.stringify({ error: '代理请求失败', message: error.message }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
 }
-
-export const config = {
-  runtime: 'nodejs18',
-};
