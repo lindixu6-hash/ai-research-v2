@@ -5,8 +5,8 @@
 import axios from 'axios';
 
 // [TODO: 环境变量配置]
-// 生产环境使用 Vercel 代理，开发环境直接连接后端
-const API_BASE = import.meta.env.PROD ? '' : 'http://47.86.191.93:3000';
+// 临时直接连接后端（需要浏览器允许混合内容）
+const API_BASE = 'http://47.86.191.93:3000';
 
 // 演示模式数据
 const DEMO_DATA = {

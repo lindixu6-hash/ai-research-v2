@@ -1,0 +1,12 @@
+{
+  "build": {
+    "command": "cd frontend && npm install && npm run build",
+    "publish": "frontend/dist"
+  },
+  "functions": {
+    "api": {
+      "src": "api/**/*.js",
+      "nodejs": "18"
+    }
+  }
+}
