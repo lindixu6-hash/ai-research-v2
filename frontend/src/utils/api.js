@@ -4,9 +4,9 @@
  */
 import axios from 'axios';
 
-// [TODO: 环境变量配置]
-// 临时直接连接后端（需要浏览器允许混合内容）
-const API_BASE = 'http://47.86.191.93:3000';
+// [环境变量配置]
+// 使用 Cloudflare Tunnel HTTPS 代理
+const API_BASE = 'https://ladies-fewer-fast-basement.trycloudflare.com';
 
 // 演示模式数据
 const DEMO_DATA = {
