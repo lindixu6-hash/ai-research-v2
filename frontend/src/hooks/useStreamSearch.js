@@ -4,9 +4,9 @@
  */
 import { useState, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { API_URL } from '../version';
 
-// 版本: v2.1 - HTTPS 后端
-const API_BASE = 'https://47.86.191.93';
+const API_BASE = API_URL;
 
 export function useStreamSearch() {
   const { t } = useTranslation();
