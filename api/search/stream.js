@@ -1,56 +1,38 @@
-// Vercel Edge Function：代理后端流式 API
-export const config = {
-  runtime: 'edge',
-};
-
-export default async function handler(request) {
-  // 处理 CORS 预检请求
-  if (request.method === 'OPTIONS') {
-    return new Response(null, {
-      status: 200,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET,OPTIONS,POST',
-        'Access-Control-Allow-Headers': 'Content-Type, X-Skip-Clarify, X-Clarify-Answers',
-      }
-    });
+// Vercel Serverless Function
+export default async function handler(req, res) {
+  // CORS
+  if (req.method === 'OPTIONS') {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    return res.status(200).end();
   }
 
-  // 只支持 POST 请求
-  if (request.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-      status: 405,
-      headers: { 'Content-Type': 'application/json' }
-    });
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
   }
-
-  const backendUrl = 'http://47.86.191.93:3000/api/search/stream';
 
   try {
-    const body = await request.json();
-
-    const backendResponse = await fetch(backendUrl, {
+    const response = await fetch('http://47.86.191.93:3000/api/search/stream', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body)
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(req.body)
     });
 
-    // 返回流式响应
-    return new Response(backendResponse.body, {
-      headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
-        'Access-Control-Allow-Origin': '*',
-      }
-    });
+    // Stream response
+    response.body.pipeTo(
+      new WritableStream({
+        write(chunk) {
+          res.write(chunk);
+        },
+        close() {
+          res.end();
+        }
+      })
+    );
 
+    res.setHeader('Content-Type', 'text/event-stream');
   } catch (error) {
-    return new Response(JSON.stringify({ error: '代理请求失败', message: error.message }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    });
+    res.status(500).json({ error: error.message });
   }
 }
