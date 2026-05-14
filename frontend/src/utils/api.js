@@ -5,8 +5,8 @@
 import axios from 'axios';
 
 // [环境变量配置]
-// 使用 Cloudflare Tunnel HTTPS 代理
-const API_BASE = 'https://ladies-fewer-fast-basement.trycloudflare.com';
+// 使用阿里云后端 HTTPS 地址
+const API_BASE = 'https://47.86.191.93';
 
 // 演示模式数据
 const DEMO_DATA = {
