@@ -5,7 +5,8 @@
 import { useState, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
-const API_BASE = '/api';
+// 使用后端 HTTPS 地址
+const API_BASE = 'https://47.86.191.93';
 
 export function useStreamSearch() {
   const { t } = useTranslation();
