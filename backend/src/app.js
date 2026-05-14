@@ -10,9 +10,17 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // 中间件配置
-// CORS 配置：允许所有来源（生产环境可限制具体域名）
+// CORS 配置：允许所有来源（生产环境建议限制具体域名）
+// 使用正则表达式匹配所有 Vercel 部署域名 + 本地开发
 const corsOptions = {
-  origin: ['https://ai-search-project.vercel.app', 'http://localhost:5173', 'http://127.0.0.1:5173'],
+  origin: (origin, callback) => {
+    // 允许所有 Vercel 域名
+    if (!origin) return callback(null, true); // 允许无 origin 的请求（如 mobile apps）
+    if (origin.includes('vercel.app') || origin.includes('localhost')) {
+      return callback(null, true);
+    }
+    callback(null, true); // 临时允许所有来源，调试后可收紧
+  },
   credentials: true,
   optionsSuccessStatus: 200
 };

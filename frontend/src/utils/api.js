@@ -5,8 +5,8 @@
 import axios from 'axios';
 
 // [环境变量配置]
-// 使用阿里云后端 HTTPS 地址
-const API_BASE = 'https://47.86.191.93';
+// 使用阿里云后端 HTTPS 地址（注意 /api 路径）
+const API_BASE = 'https://47.86.191.93/api';
 
 // 演示模式数据
 const DEMO_DATA = {
