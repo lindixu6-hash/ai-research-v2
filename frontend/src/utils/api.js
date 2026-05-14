@@ -5,8 +5,8 @@
 import axios from 'axios';
 
 // [环境变量配置]
-// 使用阿里云后端 HTTPS 地址（注意 /api 路径）
-const API_BASE = 'https://47.86.191.93/api';
+// 同域部署，使用相对路径
+const API_BASE = '/api';
 
 // 演示模式数据
 const DEMO_DATA = {
@@ -60,7 +60,7 @@ const api = axios.create({
 async function checkDemoMode() {
   try {
     // 尝试 ping 后端
-    await axios.get(API_BASE.replace('/api', '/health'), { timeout: 3000 });
+    await axios.get('/health', { timeout: 3000 });
     return false;
   } catch {
     return true;
