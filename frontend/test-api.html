@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>API 连接测试</title>
+</head>
+<body>
+    <h1>API 连接测试</h1>
+    <button onclick="testAPI()">测试后端连接</button>
+    <pre id="result"></pre>
+
+    <script>
+        const API_BASE = 'http://47.86.191.93:3000';
+
+        async function testAPI() {
+            const result = document.getElementById('result');
+            result.textContent = '正在测试...';
+
+            try {
+                // 测试 1: 健康检查
+                const healthRes = await fetch(API_BASE + '/health');
+                const healthData = await healthRes.json();
+                result.textContent += '\n\n✅ 健康检查:\n' + JSON.stringify(healthData, null, 2);
+
+                // 测试 2: CORS 检查
+                result.textContent += '\n\n✅ CORS 测试通过！';
+
+                // 测试 3: 流式 API
+                result.textContent += '\n\n正在测试流式 API...';
+                const streamRes = await fetch(API_BASE + '/api/search/stream', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query: '测试' })
+                });
+
+                const reader = streamRes.body.getReader();
+                const decoder = new TextDecoder();
+                let streamData = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    streamData += decoder.decode(value);
+                }
+
+                result.textContent += '\n\n✅ 流式 API 响应:\n' + streamData.substring(0, 500) + '...';
+
+            } catch (error) {
+                result.textContent += '\n\n❌ 错误: ' + error.message;
+            }
+        }
+    </script>
+</body>
+</html>
