@@ -5,7 +5,8 @@
 import axios from 'axios';
 
 // [TODO: 环境变量配置]
-const API_BASE = import.meta.env.VITE_API_BASE || '/api';
+// Vercel 部署时使用硬编码的后端地址
+const API_BASE = 'http://47.86.191.93:3000';
 
 // 演示模式数据
 const DEMO_DATA = {
@@ -72,8 +73,8 @@ async function checkDemoMode() {
  * @returns {Promise} 搜索结果
  */
 export async function search(query) {
-  // 检查是否在演示环境（GitHub Pages 或本地无后端）
-  const isDemo = import.meta.env.MODE === 'production' || await checkDemoMode();
+  // 检查后端是否可用（不自动进入演示模式）
+  const isDemo = await checkDemoMode();
 
   if (isDemo) {
     // 返回演示数据
