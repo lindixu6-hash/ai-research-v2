@@ -36,6 +36,7 @@ app.use((req, res, next) => {
 
 // 静态文件服务（日志管理页面）
 app.use('/logs', express.static(path.join(__dirname, '../public')));
+app.use(express.static(path.join(__dirname, '../public')));  // 同时支持根路径访问
 
 // 健康检查接口
 app.get('/health', (req, res) => {
@@ -48,6 +49,7 @@ app.get('/health', (req, res) => {
 
 // 搜索API路由
 app.use('/api/search', require('./routes/search'));
+app.use('/api/search', require('./routes/searchV2'));  // 优化版路由
 app.use('/api/search', require('./routes/stream'));  // 流式路由
 app.use('/api/logs', require('./routes/logs'));      // 日志路由
 
