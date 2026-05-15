@@ -258,6 +258,9 @@ module.exports = {
    - high：官方、学术、权威媒体
    - medium：新闻网站、专业博客
    - low：一般论坛、个人博客
+4. 提取3-5个最重要的信息点
+
+【重要】只输出纯JSON，不要有任何其他文字、解释或markdown标记。
 
 【输出格式】
 {
@@ -273,6 +276,11 @@ module.exports = {
 
 示例：
 {
+  "findings": [
+    {"fact": "美国公司标准工作时间是上午9点到下午5点，每周40小时", "source": "美国劳工部官网", "url": "https://www.dol.gov/general/workhours", "confidence": "high"},
+    {"fact": "科技公司常采用弹性工作制，员工可自行调整上下班时间", "source": "Forbes职场报告", "url": "https://www.forbes.com/flexible-work", "confidence": "medium"}
+  ]
+}`,
   "findings": [
     {"fact": "美国公司标准工作时间是上午9点到下午5点，每周40小时", "source": "美国劳工部官网", "url": "https://www.dol.gov/general/workhours", "confidence": "high"},
     {"fact": "科技公司常采用弹性工作制，员工可自行调整上下班时间", "source": "Forbes职场报告", "url": "https://www.forbes.com/flexible-work", "confidence": "medium"}

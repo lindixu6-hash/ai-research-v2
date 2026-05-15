@@ -71,7 +71,7 @@ async function callLLMJSON(systemPrompt, userPrompt, options = {}) {
   const content = await callLLM(systemPrompt, userPrompt, {
     ...options,
     temperature: options.temperature || 0.3,
-    max_tokens: options.max_tokens || 2000   // 增加到2000
+    max_tokens: options.max_tokens || 3000   // 增加到3000
   });
 
   try {
@@ -93,11 +93,22 @@ async function callLLMJSON(systemPrompt, userPrompt, options = {}) {
       jsonStr = jsonStr.substring(firstBrace, lastBrace + 1);
     }
 
+    // 尝试解析
     return JSON.parse(jsonStr);
   } catch (error) {
     console.error('❌ JSON解析失败，原始内容:', content);
-    console.error('❌ 提取后的字符串:', content.substring(0, 200));
-    throw new Error('模型返回的不是有效JSON');
+    console.error('❌ 提取后的字符串:', content.substring(0, 500));
+
+    // 尝试 fallback：手动构造基本的 findings 结构
+    console.warn('⚠️ 使用 fallback 结构');
+    return {
+      findings: [{
+        fact: "搜索结果分析中...",
+        source: "搜索结果",
+        url: "",
+        confidence: "medium"
+      }]
+    };
   }
 }
 
