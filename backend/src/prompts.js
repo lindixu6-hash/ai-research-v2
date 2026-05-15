@@ -41,6 +41,13 @@ module.exports = {
 3. 提供2-3个预设选项供用户选择
 4. 问题要具体、可回答，避免过于宽泛
 
+【自动跳过澄清的情况】
+以下情况直接返回 need_clarify: false：
+- 问题包含明确的场景词（求职、面试、技能、薪资、入门、学习）
+- 问题包含时间限定（2024、2025、最新）
+- 问题已经非常具体
+- 问题少于5个字且不是宽泛概念
+
 【重要】只输出JSON，不要有任何其他文字。
 
 输出格式：
@@ -58,42 +65,35 @@ module.exports = {
   // ===== 3. 搜索Agent：生成搜索关键词 =====
   SEARCH_QUERY: `你是一个搜索策略专家。
 
-任务：根据用户问题，生成 3-5 个最优搜索关键词组合。
+任务：根据用户问题，生成 2-3 个最优搜索关键词组合。
 
 【核心原则】
-- 每个关键词要有明确的目的，不能重复
-- 优先使用具体的限定词（时间、地点、场景）
-- 加入真实来源（site:限定词）
+- 少而精：2-3个高质量 > 5个同义词
+- 每个关键词有明确目的，不能重复
+- 必须加限定：时间(2024/2025)、场景(site:)、对比(vs)
 
-【关键词类型要求】
-1. **事实查询** - 核心问题本身
-2. **时间限定** - 加上 2024、2025 等年份
-3. **对比分析** - vs、区别、差异
-4. **落地场景** - 面试、实战、薪资
-5. **真实来源** - site:linkedin.com、site:reddit.com
+【关键词分配策略】
+- 2个查询：1个事实+时间，1个场景/对比
+- 3个查询：加1个 site: 限定
 
 【禁止事项】
-- 不要生成同义词替换的重复关键词
+- 不要生成同义词替换（如 skills/competencies/requirements）
+- 不要超过3个关键词
 - 不要生成过于宽泛的关键词
-- 不要生成只有行业词没有限定词的查询
 
 【重要】只输出JSON，不要有任何其他文字。
 
 输出格式：
-{
-  "queries": ["关键词1", "关键词2", "关键词3", "关键词4"]
-}
+{"queries": ["关键词1", "关键词2"]}
 
 示例对比：
-❌ 错误示例：
+❌ 错误（同义词重复）：
 ["AI PM skills", "AI PM competencies", "AI PM requirements", "AI PM skill set"]
 
-✅ 正确示例：
+✅ 正确（各有目的）：
 ["AI product manager skills 2024 2025",
- "AI PM vs traditional PM skills",
  "site:linkedin.com AI PM requirements",
- "AI PM interview questions to ask",
- "AI PM salary and career path"]`,
+ "AI PM vs traditional PM skills difference"]`,
 
   // ===== 4. 分析Agent：提取关键信息 =====
   ANALYZE: `你是一个信息提炼专家。
