@@ -5,6 +5,7 @@
 
 const express = require('express');
 const router = express.Router();
+const { logSearch } = require('../services/searchLogger');
 
 /**
  * POST /api/search/stream
@@ -14,6 +15,9 @@ router.post('/stream', async (req, res) => {
   const { query } = req.body;
   const skipClarify = req.headers['x-skip-clarify'] === 'true';
   const clarifyAnswersHeader = req.headers['x-clarify-answers'];
+  const clientIp = req.headers['x-forwarded-for'] || req.connection.remoteAddress || '';
+  const userAgent = req.headers['user-agent'] || '';
+
   let clarifyAnswers = [];
   try {
     if (clarifyAnswersHeader) {
@@ -201,6 +205,19 @@ router.post('/stream', async (req, res) => {
       timestamp: Date.now()
     });
 
+    // 记录搜索日志
+    await logSearch({
+      query,
+      clarifyAnswers,
+      searchQueries: searchResult.queries,
+      resultsCount: allResults.length,
+      findings: analyzeResult.findings,
+      report,
+      duration: Date.now() - startTime,
+      userAgent,
+      ip: clientIp
+    });
+
     sendEvent('end', {
       message: '完成！',
       timestamp: Date.now()
@@ -210,6 +227,16 @@ router.post('/stream', async (req, res) => {
     console.error('流式搜索错误:', error);
     sendEvent('error', {
       message: error.message
+    });
+
+    // 记录错误日志
+    await logSearch({
+      query,
+      clarifyAnswers,
+      error: error.message,
+      duration: Date.now() - startTime,
+      userAgent,
+      ip: clientIp
     });
   } finally {
     res.end();

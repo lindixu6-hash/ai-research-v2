@@ -45,6 +45,7 @@ app.get('/health', (req, res) => {
 // 搜索API路由
 app.use('/api/search', require('./routes/search'));
 app.use('/api/search', require('./routes/stream'));  // 流式路由
+app.use('/api/logs', require('./routes/logs'));      // 日志路由
 
 // 404处理
 app.use((req, res) => {
