@@ -70,9 +70,25 @@ router.post('/stream', async (req, res) => {
       timestamp: Date.now()
     });
 
-    // ===== 第2步：澄清判断 =====
+    // ===== 第2步：问题分类 + 澄清判断 =====
     const shouldSkipClarify = skipClarify || (clarifyAnswers && clarifyAnswers.length > 0);
+    let questionType = 'exploration'; // 默认类型
+
     if (!shouldSkipClarify) {
+      sendEvent('step', {
+        step: 'classify',
+        message: '分析问题类型...',
+        timestamp: Date.now()
+      });
+
+      // 问题分类
+      const classifyResult = await callLLMJSON(
+        prompts.SYSTEM,
+        prompts.QUESTION_CLASSIFIER + '\n\n用户问题：' + query
+      );
+      questionType = classifyResult?.type || classifyResult || 'exploration';
+      console.log('📋 问题类型:', questionType);
+
       sendEvent('step', {
         step: 'clarify',
         message: '分析问题是否清晰...',
@@ -199,10 +215,10 @@ router.post('/stream', async (req, res) => {
       prompts.ANALYZE + '\n\n原始问题：' + query + '\n\n搜索结果（共' + allResults.length + '条，分析前' + maxResultsToAnalyze + '条）：\n' + searchContext
     );
 
-    // ===== 第6步：生成报告 =====
+    // ===== 第6步：生成报告（使用分层模板）=====
     sendEvent('step', {
       step: 'generating_report',
-      message: '生成研究报告...',
+      message: `生成${questionType === 'factual' ? '简洁' : '研究'}报告...`,
       timestamp: Date.now()
     });
 
@@ -210,9 +226,13 @@ router.post('/stream', async (req, res) => {
       `${i + 1}. ${f.fact}\n   来源：${f.source}\n   可信度：${f.confidence}`
     ).join('\n\n');
 
+    // 根据问题类型选择模板
+    const responseTemplate = prompts.RESPONSE_TEMPLATES[questionType] ||
+                             prompts.RESPONSE_TEMPLATES.exploration;
+
     const report = await callLLM(
       prompts.SYSTEM,
-      prompts.REPORT + '\n\n原始问题：' + query + '\n\n研究发现：\n' + findingsText
+      responseTemplate + '\n\n' + prompts.REPORT + '\n\n原始问题：' + query + '\n\n研究发现：\n' + findingsText
     );
 
     // ===== 完成 =====
@@ -243,6 +263,7 @@ router.post('/stream', async (req, res) => {
       findings: analyzeResult.findings,
       report,
       duration: Date.now() - startTime,
+      questionType, // 记录问题类型
       userAgent,
       ip: clientIp
     });
