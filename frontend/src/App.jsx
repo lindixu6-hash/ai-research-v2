@@ -29,6 +29,80 @@ function App() {
     skipClarify
   } = useStreamSearch();
 
+  // 渲染带引用的文本
+  const renderWithCitations = (children, findings) => {
+    // 处理 children 可能是数组或单个节点的情况
+    const text = Array.isArray(children)
+      ? children.map(c => typeof c === 'string' ? c : '').join('')
+      : typeof children === 'string' ? children : '';
+
+    if (!text || !findings || findings.length === 0) {
+      return children;
+    }
+
+    // 匹配 [1], [2] 等引用模式
+    const citationPattern = /\[(\d+)\]/g;
+
+    const parts = [];
+    let lastIndex = 0;
+    let match;
+    let citationIndex = 0;
+
+    while ((match = citationPattern.exec(text)) !== null) {
+      // 添加引用前的文本
+      if (match.index > lastIndex) {
+        parts.push(text.slice(lastIndex, match.index));
+      }
+
+      const citationNum = parseInt(match[1], 10);
+      const finding = findings[citationNum - 1]; // findings 索引从0开始，引用从1开始
+
+      if (finding && finding.url) {
+        parts.push(
+          <sup
+            key={`citation-${citationIndex++}-${citationNum}`}
+            className="citation"
+            title={`${finding.source}\n点击跳转到原始来源`}
+          >
+            <a
+              href={finding.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              style={{ textDecoration: 'none', color: 'inherit' }}
+            >
+              {citationNum}
+            </a>
+          </sup>
+        );
+      } else if (finding) {
+        // 没有 URL 的情况，仍然显示引用数字
+        parts.push(
+          <sup
+            key={`citation-${citationIndex++}-${citationNum}`}
+            className="citation"
+            title={`${finding.source}`}
+          >
+            {citationNum}
+          </sup>
+        );
+      } else {
+        // 如果找不到对应的 finding，保留原始文本
+        parts.push(match[0]);
+      }
+
+      lastIndex = match.index + match[0].length;
+    }
+
+    // 添加剩余文本
+    if (lastIndex < text.length) {
+      parts.push(text.slice(lastIndex));
+    }
+
+    // 如果找到引用，返回处理后的部分；否则返回原始 children
+    return parts.length > 1 ? parts : children;
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     executeSearch(query);
@@ -203,7 +277,7 @@ function App() {
                 </div>
               </div>
 
-              {/* Markdown 渲染 */}
+              {/* Markdown 渲染 - 带引用支持 */}
               <div className="report-content markdown-body">
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
@@ -212,7 +286,7 @@ function App() {
                     h2: ({ children }) => <h2 className="md-h2">{children}</h2>,
                     h3: ({ children }) => <h3 className="md-h3">{children}</h3>,
                     h4: ({ children }) => <h4 className="md-h4">{children}</h4>,
-                    p: ({ children }) => <p className="md-p">{children}</p>,
+                    p: ({ children }) => <p className="md-p">{renderWithCitations(children, result.findings)}</p>,
                     strong: ({ children }) => <strong className="md-strong">{children}</strong>,
                     ul: ({ children }) => <ul className="md-ul">{children}</ul>,
                     ol: ({ children }) => <ol className="md-ol">{children}</ol>,

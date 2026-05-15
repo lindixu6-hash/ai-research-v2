@@ -1,10 +1,11 @@
 /**
- * 流式搜索 API（SSE）- 性能优化版
+ * 流式搜索 API（SSE）- 终极优化版
  *
  * 优化点：
- * 1. 并行执行所有搜索（而非串行）
- * 2. 添加 URL 去重逻辑
- * 3. 减少不必要的等待
+ * 1. 自适应搜索：根据置信度决定是否继续搜索
+ * 2. 查询意图分类：8种类型，针对性回答
+ * 3. URL 去重逻辑
+ * 4. 引用系统：带来源URL的引用标注
  */
 
 const express = require('express');
@@ -27,8 +28,56 @@ function deduplicateResults(results) {
 }
 
 /**
+ * 生成当前轮次的搜索关键词
+ */
+async function generateQueries(prompts, callLLMJSON, query, round, intent) {
+  const prompt = prompts.SEARCH_QUERY + `\n\n用户问题：${query}\n当前轮次：${round}\n查询意图：${intent}`;
+
+  // 每轮生成1-2个关键词
+  const result = await callLLMJSON(prompts.SYSTEM, prompt);
+
+  // 确保 queries 存在且是数组
+  if (!result || !result.queries || !Array.isArray(result.queries)) {
+    // fallback: 使用简单关键词
+    return { queries: [query] };
+  }
+
+  return result;
+}
+
+/**
+ * 评估当前搜索结果的置信度
+ */
+async function evaluateConfidence(prompts, callLLMJSON, query, searchResults, allResults) {
+  // 构建搜索结果摘要
+  const resultsSummary = allResults.slice(0, 10).map(r =>
+    `- ${r.title}: ${((r.rawContent || r.content) || '').slice(0, 100)}...`
+  ).join('\n');
+
+  const prompt = prompts.ADAPTIVE_SEARCH + `\n\n用户问题：${query}\n\n当前搜索结果摘要：\n${resultsSummary}\n\n搜索结果数量：${allResults.length}条`;
+
+  try {
+    const result = await callLLMJSON(prompts.SYSTEM, prompt);
+    return {
+      confidence: result?.confidence || 0.5,
+      need_more_search: result?.need_more_search !== false,
+      reason: result?.reason || '',
+      missing_info: result?.missing_info || []
+    };
+  } catch (e) {
+    console.error('置信度评估失败:', e);
+    // fallback: 基于结果数量判断
+    return {
+      confidence: Math.min(0.5 + allResults.length * 0.1, 0.9),
+      need_more_search: allResults.length < 5,
+      reason: '基于结果数量的估算'
+    };
+  }
+}
+
+/**
  * POST /api/search/stream
- * 流式搜索接口
+ * 流式搜索接口 - 自适应搜索版本
  */
 router.post('/stream', async (req, res) => {
   const { query } = req.body;
@@ -72,8 +121,9 @@ router.post('/stream', async (req, res) => {
 
     // ===== 第2步：查询意图分类 + 澄清判断 =====
     const shouldSkipClarify = skipClarify || (clarifyAnswers && clarifyAnswers.length > 0);
-    let queryIntent = 'informational'; // 默认意图
-    let queryComplexity = 'simple'; // 默认复杂度
+    let queryIntent = 'informational-simple';
+    let maxRounds = 3;
+    let expectedLength = '50-100';
 
     if (!shouldSkipClarify) {
       sendEvent('step', {
@@ -82,14 +132,17 @@ router.post('/stream', async (req, res) => {
         timestamp: Date.now()
       });
 
-      // 查询意图分类（基于大厂标准）
+      // 查询意图分类（基于大厂标准，8种类型）
       const classifyResult = await callLLMJSON(
         prompts.SYSTEM,
         prompts.QUERY_CLASSIFIER + '\n\n用户问题：' + query
       );
-      queryIntent = classifyResult?.intent || 'informational';
-      queryComplexity = classifyResult?.complexity || 'simple';
-      console.log('📋 查询意图:', queryIntent, '| 复杂度:', queryComplexity);
+
+      queryIntent = classifyResult?.intent || 'informational-simple';
+      maxRounds = classifyResult?.max_rounds || 3;
+      expectedLength = classifyResult?.expected_length || '50-100';
+
+      console.log('📋 查询意图:', queryIntent, '| 最大轮数:', maxRounds, '| 预期长度:', expectedLength);
 
       sendEvent('step', {
         step: 'clarify',
@@ -115,59 +168,94 @@ router.post('/stream', async (req, res) => {
       }
     }
 
-    // ===== 第3步：生成搜索关键词 =====
-    sendEvent('step', {
-      step: 'generating_queries',
-      message: '生成搜索关键词...',
-      timestamp: Date.now()
-    });
-
-    // 构建带澄清答案的查询上下文
-    let queryContext = query;
-    if (clarifyAnswers.length > 0) {
-      queryContext += `\n\n用户偏好：${clarifyAnswers.join('、')}`;
-    }
-
-    const searchResult = await callLLMJSON(
-      prompts.SYSTEM,
-      prompts.SEARCH_QUERY + '\n\n用户问题：' + queryContext
-    );
-
-    sendEvent('queries_generated', {
-      queries: searchResult.queries,
-      message: `生成了 ${searchResult.queries.length} 个搜索关键词`
-    });
-
-    // ===== 第4步：并行执行搜索（性能优化）=====
-    sendEvent('step', {
-      step: 'searching',
-      message: `并行搜索 ${searchResult.queries.length} 个关键词...`,
-      timestamp: Date.now()
-    });
-
-    // 使用 batchSearch 并行执行所有搜索
-    const searchResults = await batchSearch(searchResult.queries);
-
-    // 收集所有结果
+    // ===== 第3步：自适应搜索循环 =====
     let allResults = [];
+    let currentConfidence = 0;
+    let round = 0;
     let totalSearched = 0;
     let totalValid = 0;
     let totalInvalid = 0;
 
-    searchResults.forEach(result => {
-      if (result.success && result.results) {
-        totalSearched += result.results.length;
+    while (currentConfidence < 0.85 && round < maxRounds) {
+      round++;
 
-        if (result.validation) {
-          totalValid += result.validation.validCount;
-          totalInvalid += result.validation.invalidCount;
+      sendEvent('step', {
+        step: 'searching',
+        message: `第${round}轮搜索...`,
+        timestamp: Date.now()
+      });
+
+      // 生成当前轮次的搜索关键词
+      const searchResult = await generateQueries(prompts, callLLMJSON, query, round, queryIntent);
+
+      sendEvent('queries_generated', {
+        queries: searchResult.queries,
+        round: round,
+        message: `第${round}轮：${searchResult.queries.length} 个关键词`
+      });
+
+      // 并行执行搜索
+      const roundResults = await batchSearch(searchResult.queries);
+
+      // 收集本轮结果
+      let roundResultsList = [];
+      roundResults.forEach(result => {
+        if (result.success && result.results) {
+          totalSearched += result.results.length;
+          if (result.validation) {
+            totalValid += result.validation.validCount;
+            totalInvalid += result.validation.invalidCount;
+          }
+          roundResultsList.push(...result.results);
         }
+      });
 
-        allResults.push(...result.results);
+      // URL 去重
+      roundResultsList = deduplicateResults(roundResultsList);
+      allResults.push(...roundResultsList);
+
+      // 发送搜索结果摘要
+      roundResults.forEach(result => {
+        if (result.success && result.results && result.results.length > 0) {
+          sendEvent('search_result', {
+            query: result.query,
+            count: result.results.length,
+            results: result.results.slice(0, 2).map(r => ({
+              title: r.title,
+              url: r.url
+            }))
+          });
+        }
+      });
+
+      // 评估置信度
+      sendEvent('step', {
+        step: 'evaluating',
+        message: '评估结果质量...',
+        timestamp: Date.now()
+      });
+
+      const evaluation = await evaluateConfidence(prompts, callLLMJSON, query, roundResults, allResults);
+      currentConfidence = evaluation.confidence;
+
+      sendEvent('confidence_update', {
+        round: round,
+        confidence: currentConfidence,
+        need_more: evaluation.need_more_search,
+        reason: evaluation.reason,
+        total_results: allResults.length
+      });
+
+      // 如果置信度足够或明确不需要更多搜索，停止
+      if (!evaluation.need_more_search || currentConfidence >= 0.85) {
+        console.log(`✅ 置信度 ${currentConfidence} >= 0.85，停止搜索`);
+        break;
       }
-    });
 
-    // URL 去重
+      console.log(`⏳ 第${round}轮完成，置信度 ${currentConfidence}，继续搜索...`);
+    }
+
+    // URL 去重（最终）
     const beforeDedup = allResults.length;
     allResults = deduplicateResults(allResults);
     const afterDedup = allResults.length;
@@ -175,9 +263,11 @@ router.post('/stream', async (req, res) => {
 
     sendEvent('step', {
       step: 'search_done',
-      message: `搜索完成，找到 ${afterDedup} 条唯一结果（过滤了 ${totalInvalid} 条无效，去重 ${deduped} 条重复）`,
+      message: `搜索完成（${round}轮），找到 ${afterDedup} 条唯一结果，置信度 ${(currentConfidence * 100).toFixed(0)}%`,
       timestamp: Date.now(),
       stats: {
+        rounds: round,
+        confidence: currentConfidence,
         total: totalSearched,
         valid: totalValid,
         invalid: totalInvalid,
@@ -185,28 +275,14 @@ router.post('/stream', async (req, res) => {
       }
     });
 
-    // 发送搜索结果摘要（前几个）
-    searchResults.forEach(result => {
-      if (result.success && result.results && result.results.length > 0) {
-        sendEvent('search_result', {
-          query: result.query,
-          count: result.results.length,
-          results: result.results.slice(0, 2).map(r => ({
-            title: r.title,
-            url: r.url
-          }))
-        });
-      }
-    });
-
-    // ===== 第5步：分析提取 =====
+    // ===== 第4步：分析提取（带来源URL）=====
     sendEvent('step', {
       step: 'analyzing',
       message: '分析搜索结果，提取关键信息...',
       timestamp: Date.now()
     });
 
-    // 限制分析的结果数量，避免 token 过长
+    // 限制分析的结果数量
     const maxResultsToAnalyze = 15;
     const searchContext = allResults.slice(0, maxResultsToAnalyze).map(r => {
       return `来源：${r.url}\n标题：${r.title}\n内容：${(r.rawContent || r.content).slice(0, 800)}`;
@@ -217,27 +293,39 @@ router.post('/stream', async (req, res) => {
       prompts.ANALYZE + '\n\n原始问题：' + query + '\n\n搜索结果（共' + allResults.length + '条，分析前' + maxResultsToAnalyze + '条）：\n' + searchContext
     );
 
-    // ===== 第6步：生成报告（使用分层模板+BLUF原则）=====
+    // ===== 第5步：生成报告（带引用）=====
     sendEvent('step', {
       step: 'generating_report',
-      message: `生成${queryComplexity === 'simple' ? '简洁' : '详细'}报告...`,
+      message: '生成研究报告...',
       timestamp: Date.now()
     });
 
-    const findingsText = analyzeResult.findings.map((f, i) =>
-      `${i + 1}. ${f.fact}\n   来源：${f.source}\n   可信度：${f.confidence}`
+    // 生成引用文本
+    const findingsWithCitations = analyzeResult.findings.map((f, i) => {
+      const citation = `[${i + 1}]`;
+      return {
+        ...f,
+        citation,
+        index: i + 1
+      };
+    });
+
+    const findingsText = findingsWithCitations.map(f =>
+      `${f.index}. ${f.fact} ${f.citation}\n   来源：${f.source}\n   URL：${f.url || 'N/A'}\n   可信度：${f.confidence}`
     ).join('\n\n');
 
-    // 根据意图+复杂度选择模板
-    let templateKey = `${queryIntent}_${queryComplexity}`;
-    // 如果没有精确匹配，使用基础意图模板
-    const responseTemplate = prompts.RESPONSE_TEMPLATES[templateKey] ||
-                             prompts.RESPONSE_TEMPLATES[queryIntent] ||
+    // 生成来源列表
+    const references = findingsWithCitations.map((f, i) => {
+      return `[${i + 1}] ${f.source}${f.url ? ' - ' + f.url : ''}`;
+    }).join('\n');
+
+    // 根据意图选择模板
+    const responseTemplate = prompts.RESPONSE_TEMPLATES[queryIntent] ||
                              prompts.RESPONSE_TEMPLATES.informational_simple;
 
     const report = await callLLM(
       prompts.SYSTEM,
-      responseTemplate + '\n\n' + prompts.REPORT + '\n\n用户问题：' + query + '\n\n研究发现：\n' + findingsText
+      responseTemplate + '\n\n' + prompts.REPORT + '\n\n用户问题：' + query + '\n\n研究发现：\n' + findingsText + '\n\n## 参考来源\n' + references
     );
 
     // ===== 完成 =====
@@ -247,7 +335,8 @@ router.post('/stream', async (req, res) => {
       findings: analyzeResult.findings,
       duration: duration,
       stats: {
-        queriesCount: searchResult.queries.length,
+        rounds: round,
+        confidence: currentConfidence,
         resultsCount: allResults.length,
         dedupedCount: deduped
       }
@@ -255,7 +344,7 @@ router.post('/stream', async (req, res) => {
 
     sendEvent('step', {
       step: 'complete',
-      message: `搜索完成！耗时 ${Math.round(duration / 1000)} 秒`,
+      message: `搜索完成！耗时 ${Math.round(duration / 1000)} 秒（${round}轮搜索）`,
       timestamp: Date.now()
     });
 
@@ -263,13 +352,14 @@ router.post('/stream', async (req, res) => {
     await logSearch({
       query,
       clarifyAnswers,
-      searchQueries: searchResult.queries,
+      searchQueries: [], // 多轮搜索，记录较复杂
       resultsCount: allResults.length,
       findings: analyzeResult.findings,
       report,
       duration: Date.now() - startTime,
-      queryIntent, // 记录查询意图
-      queryComplexity, // 记录复杂度
+      queryIntent,
+      rounds: round,
+      confidence: currentConfidence,
       userAgent,
       ip: clientIp
     });

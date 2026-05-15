@@ -37,7 +37,11 @@ async function logSearch(data) {
     duration: data.duration || 0,
     error: data.error || null,
     userAgent: data.userAgent || '',
-    ip: data.ip || ''
+    ip: data.ip || '',
+    // 新增：自适应搜索相关字段
+    queryIntent: data.queryIntent || null,
+    rounds: data.rounds || null,
+    confidence: data.confidence || null
   };
 
   try {
