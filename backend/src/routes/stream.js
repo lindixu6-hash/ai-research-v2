@@ -70,24 +70,26 @@ router.post('/stream', async (req, res) => {
       timestamp: Date.now()
     });
 
-    // ===== 第2步：问题分类 + 澄清判断 =====
+    // ===== 第2步：查询意图分类 + 澄清判断 =====
     const shouldSkipClarify = skipClarify || (clarifyAnswers && clarifyAnswers.length > 0);
-    let questionType = 'exploration'; // 默认类型
+    let queryIntent = 'informational'; // 默认意图
+    let queryComplexity = 'simple'; // 默认复杂度
 
     if (!shouldSkipClarify) {
       sendEvent('step', {
         step: 'classify',
-        message: '分析问题类型...',
+        message: '分析查询意图...',
         timestamp: Date.now()
       });
 
-      // 问题分类
+      // 查询意图分类（基于大厂标准）
       const classifyResult = await callLLMJSON(
         prompts.SYSTEM,
-        prompts.QUESTION_CLASSIFIER + '\n\n用户问题：' + query
+        prompts.QUERY_CLASSIFIER + '\n\n用户问题：' + query
       );
-      questionType = classifyResult?.type || classifyResult || 'exploration';
-      console.log('📋 问题类型:', questionType);
+      queryIntent = classifyResult?.intent || 'informational';
+      queryComplexity = classifyResult?.complexity || 'simple';
+      console.log('📋 查询意图:', queryIntent, '| 复杂度:', queryComplexity);
 
       sendEvent('step', {
         step: 'clarify',
@@ -215,10 +217,10 @@ router.post('/stream', async (req, res) => {
       prompts.ANALYZE + '\n\n原始问题：' + query + '\n\n搜索结果（共' + allResults.length + '条，分析前' + maxResultsToAnalyze + '条）：\n' + searchContext
     );
 
-    // ===== 第6步：生成报告（使用分层模板）=====
+    // ===== 第6步：生成报告（使用分层模板+BLUF原则）=====
     sendEvent('step', {
       step: 'generating_report',
-      message: `生成${questionType === 'factual' ? '简洁' : '研究'}报告...`,
+      message: `生成${queryComplexity === 'simple' ? '简洁' : '详细'}报告...`,
       timestamp: Date.now()
     });
 
@@ -226,13 +228,16 @@ router.post('/stream', async (req, res) => {
       `${i + 1}. ${f.fact}\n   来源：${f.source}\n   可信度：${f.confidence}`
     ).join('\n\n');
 
-    // 根据问题类型选择模板
-    const responseTemplate = prompts.RESPONSE_TEMPLATES[questionType] ||
-                             prompts.RESPONSE_TEMPLATES.exploration;
+    // 根据意图+复杂度选择模板
+    let templateKey = `${queryIntent}_${queryComplexity}`;
+    // 如果没有精确匹配，使用基础意图模板
+    const responseTemplate = prompts.RESPONSE_TEMPLATES[templateKey] ||
+                             prompts.RESPONSE_TEMPLATES[queryIntent] ||
+                             prompts.RESPONSE_TEMPLATES.informational_simple;
 
     const report = await callLLM(
       prompts.SYSTEM,
-      responseTemplate + '\n\n' + prompts.REPORT + '\n\n原始问题：' + query + '\n\n研究发现：\n' + findingsText
+      responseTemplate + '\n\n' + prompts.REPORT + '\n\n用户问题：' + query + '\n\n研究发现：\n' + findingsText
     );
 
     // ===== 完成 =====
@@ -263,7 +268,8 @@ router.post('/stream', async (req, res) => {
       findings: analyzeResult.findings,
       report,
       duration: Date.now() - startTime,
-      questionType, // 记录问题类型
+      queryIntent, // 记录查询意图
+      queryComplexity, // 记录复杂度
       userAgent,
       ip: clientIp
     });
