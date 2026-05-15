@@ -1,11 +1,30 @@
 /**
- * 流式搜索 API（SSE）
- * 实时推送 Agent 执行进度
+ * 流式搜索 API（SSE）- 性能优化版
+ *
+ * 优化点：
+ * 1. 并行执行所有搜索（而非串行）
+ * 2. 添加 URL 去重逻辑
+ * 3. 减少不必要的等待
  */
 
 const express = require('express');
 const router = express.Router();
 const { logSearch } = require('../services/searchLogger');
+
+/**
+ * URL 去重
+ */
+function deduplicateResults(results) {
+  const seen = new Set();
+  return results.filter(result => {
+    const url = result.url;
+    if (seen.has(url)) {
+      return false;
+    }
+    seen.add(url);
+    return true;
+  });
+}
 
 /**
  * POST /api/search/stream
@@ -43,7 +62,7 @@ router.post('/stream', async (req, res) => {
   try {
     const { callLLMJSON, callLLM } = require('../services/llmService');
     const prompts = require('../prompts');
-    const { search } = require('../services/searchService');
+    const { batchSearch } = require('../services/searchService');
 
     // ===== 第1步：开始 =====
     sendEvent('start', {
@@ -68,7 +87,6 @@ router.post('/stream', async (req, res) => {
       console.log('🔍 clarifyResult:', JSON.stringify(clarifyResult));
 
       if (clarifyResult.need_clarify) {
-        // 单问题渐进式澄清
         sendEvent('clarify', {
           question: clarifyResult.question,
           options: clarifyResult.options || []
@@ -102,61 +120,64 @@ router.post('/stream', async (req, res) => {
       message: `生成了 ${searchResult.queries.length} 个搜索关键词`
     });
 
-    // ===== 第4步：执行搜索（带结果验证）=====
-    const allResults = [];
+    // ===== 第4步：并行执行搜索（性能优化）=====
+    sendEvent('step', {
+      step: 'searching',
+      message: `并行搜索 ${searchResult.queries.length} 个关键词...`,
+      timestamp: Date.now()
+    });
+
+    // 使用 batchSearch 并行执行所有搜索
+    const searchResults = await batchSearch(searchResult.queries);
+
+    // 收集所有结果
+    let allResults = [];
     let totalSearched = 0;
     let totalValid = 0;
     let totalInvalid = 0;
 
-    for (let i = 0; i < searchResult.queries.length; i++) {
-      const q = searchResult.queries[i];
-      sendEvent('step', {
-        step: 'searching',
-        current: i + 1,
-        total: searchResult.queries.length,
-        query: q,
-        message: `搜索 (${i + 1}/${searchResult.queries.length}): ${q}`,
-        timestamp: Date.now()
-      });
-
-      const result = await search(q);
-
+    searchResults.forEach(result => {
       if (result.success && result.results) {
         totalSearched += result.results.length;
 
-        // 显示验证统计
         if (result.validation) {
           totalValid += result.validation.validCount;
           totalInvalid += result.validation.invalidCount;
-          sendEvent('validation', {
-            query: q,
-            total: result.validation.total,
-            valid: result.validation.validCount,
-            invalid: result.validation.invalidCount,
-            message: `验证: ${result.validation.validCount}/${result.validation.total} 条有效`
-          });
         }
 
         allResults.push(...result.results);
-        sendEvent('search_result', {
-          query: q,
-          count: result.results.length,
-          results: result.results.slice(0, 3).map(r => ({
-            title: r.title,
-            url: r.url
-          }))
-        });
       }
-    }
+    });
+
+    // URL 去重
+    const beforeDedup = allResults.length;
+    allResults = deduplicateResults(allResults);
+    const afterDedup = allResults.length;
+    const deduped = beforeDedup - afterDedup;
 
     sendEvent('step', {
       step: 'search_done',
-      message: `搜索完成，找到 ${allResults.length} 条有效结果（验证过滤了 ${totalInvalid} 条无效）`,
+      message: `搜索完成，找到 ${afterDedup} 条唯一结果（过滤了 ${totalInvalid} 条无效，去重 ${deduped} 条重复）`,
       timestamp: Date.now(),
       stats: {
         total: totalSearched,
         valid: totalValid,
-        invalid: totalInvalid
+        invalid: totalInvalid,
+        deduped
+      }
+    });
+
+    // 发送搜索结果摘要（前几个）
+    searchResults.forEach(result => {
+      if (result.success && result.results && result.results.length > 0) {
+        sendEvent('search_result', {
+          query: result.query,
+          count: result.results.length,
+          results: result.results.slice(0, 2).map(r => ({
+            title: r.title,
+            url: r.url
+          }))
+        });
       }
     });
 
@@ -167,13 +188,15 @@ router.post('/stream', async (req, res) => {
       timestamp: Date.now()
     });
 
-    const searchContext = allResults.slice(0, 10).map(r => {  // 限制数量，避免超长
-      return `来源：${r.url}\n内容：${(r.rawContent || r.content).slice(0, 500)}`;
+    // 限制分析的结果数量，避免 token 过长
+    const maxResultsToAnalyze = 15;
+    const searchContext = allResults.slice(0, maxResultsToAnalyze).map(r => {
+      return `来源：${r.url}\n标题：${r.title}\n内容：${(r.rawContent || r.content).slice(0, 800)}`;
     }).join('\n\n---\n\n');
 
     const analyzeResult = await callLLMJSON(
       prompts.SYSTEM,
-      prompts.ANALYZE + '\n\n原始问题：' + query + '\n\n搜索结果：\n' + searchContext
+      prompts.ANALYZE + '\n\n原始问题：' + query + '\n\n搜索结果（共' + allResults.length + '条，分析前' + maxResultsToAnalyze + '条）：\n' + searchContext
     );
 
     // ===== 第6步：生成报告 =====
@@ -193,15 +216,21 @@ router.post('/stream', async (req, res) => {
     );
 
     // ===== 完成 =====
+    const duration = Date.now() - startTime;
     sendEvent('report', {
       report: report,
       findings: analyzeResult.findings,
-      duration: Date.now() - startTime
+      duration: duration,
+      stats: {
+        queriesCount: searchResult.queries.length,
+        resultsCount: allResults.length,
+        dedupedCount: deduped
+      }
     });
 
     sendEvent('step', {
       step: 'complete',
-      message: '搜索完成！',
+      message: `搜索完成！耗时 ${Math.round(duration / 1000)} 秒`,
       timestamp: Date.now()
     });
 
