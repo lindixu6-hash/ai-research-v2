@@ -46,7 +46,7 @@ function AppContent() {
         transition={{ duration: 0.5 }}
       >
         <h1>🤖 AI 智能搜索</h1>
-        <p className="subtitle">多轮搜索 + 智能分析 = 深度研究</p>
+        <p className="subtitle">搜索透明、来源可溯的智能AI搜索</p>
       </motion.header>
 
       {/* 搜索区域 */}

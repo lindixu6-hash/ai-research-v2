@@ -65,7 +65,7 @@ module.exports = {
 【自动跳过澄清的情况】
 以下情况直接返回 need_clarify: false：
 - 问题包含明确的场景词（求职、面试、技能、薪资、入门、学习）
-- 问题包含时间限定（2024、2025、最新）
+- 问题包含时间限定（最新、今年、具体年份）
 - 问题已经非常具体
 - 问题少于5个字且不是宽泛概念
 
@@ -94,20 +94,21 @@ module.exports = {
 【核心原则】
 - 少而精：1-2个高质量 > 5个同义词
 - 每个关键词有明确目的，不能重复
-- 必须加限定：时间(2024/2025)、场景(site:)、对比(vs)
+- 时间限定：仅在用户明确要求时效性时添加年份（如："最新"、"2024"、"2025"）
+- 不要默认添加年份，除非问题本身涉及时效性
 
-【中文搜索策略】
+【中文搜索策略 - 按优先级使用信源】
 - 当问题是中文时，优先搜索中文网站
-- 第1轮：核心关键词 + 中文限定
-- 第2轮：添加国内网站限定（如：site:zhihu.com, site:xiaohongshu.com, site:bilibili.com）
-- 第3轮：补充权威来源（site:gov.cn, site:edu.cn）
+- 第1轮：核心关键词 + 权威信源（site:gov.cn, site:news.cn, site:cctv.com）
+- 第2轮：专业媒体补充（site:thepaper.cn, site:36kr.com, site:ifanr.com）
+- 第3轮：知识社区（site:xiaohongshu.com, site:zhihu.com, site:bilibili.com）
 
 【英文搜索策略】
-- 第1轮：核心关键词 + 时间限定
+- 第1轮：核心关键词 + 权威来源
 - 第2轮：补充维度（对比/场景/来源）
 
 【分轮策略】
-- 第1轮：核心事实查询 + 时间限定
+- 第1轮：核心事实查询 + 权威信源
 - 第2轮：补充维度（对比/场景/来源）
 - 第3轮及以后：填补信息缺口
 
@@ -115,6 +116,7 @@ module.exports = {
 - 不要生成同义词替换
 - 不要超过2个关键词
 - 不要生成过于宽泛的关键词
+- 不要随意添加年份限定
 
 【重要】只输出JSON，不要有任何其他文字。
 
@@ -122,9 +124,9 @@ module.exports = {
 {"queries": ["关键词1", "关键词2"]}
 
 示例：
-中文："美国上班时间" → ["美国公司上下班时间 2024", "site:zhihu.com 美国工作时间"]
-英文："US work hours" → ["US standard work hours 2024", "site:dol.gov US work hours law"]
-中文补充："小红书 AI产品经理" → ["site:xiaohongshu.com AI产品经理", "AI产品经理 技能要求 2024"]`,
+中文："美国上班时间" → ["美国公司上下班时间 site:gov.cn", "site:zhihu.com 美国工作时间"]
+英文："US work hours" → ["US standard work hours site:dol.gov", "US work hours law"]
+中文补充："小红书 AI产品经理" → ["site:xiaohongshu.com AI产品经理", "AI产品经理 技能要求"]`,
 
   // ===== 4. 查询意图分类Agent（整合 INTENTS.md 完整版） =====
   QUERY_CLASSIFIER: `你是一个查询意图分类专家，基于大厂AI搜索产品标准（Perplexity、Google AI Overviews）。

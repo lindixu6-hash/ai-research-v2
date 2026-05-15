@@ -18,6 +18,7 @@ const CitationManager = require('../services/citationManager');
 const ConversationMemory = require('../services/conversationMemory');
 const UserProfile = require('../services/userProfile');
 const QualityAssurance = require('../services/qualityAssurance');
+const sourceConfig = require('../services/sourceConfig');
 
 /**
  * 主搜索引擎
@@ -466,6 +467,48 @@ class SearchEngine {
         citations: 0
       }
     };
+  }
+
+  /**
+   * 根据查询类型获取推荐信源
+   * @param {string} queryType - 查询类型（news/tech/social/general）
+   * @param {string} language - 语言（zh/en）
+   * @returns {Array} 推荐信源列表
+   */
+  getRecommendedSources(queryType = 'general', language = 'zh') {
+    return sourceConfig.getSourcesForQuery(queryType, language);
+  }
+
+  /**
+   * 生成带信源优先级的搜索关键词
+   * @param {string} baseQuery - 基础查询词
+   * @param {number} round - 当前轮次
+   * @param {string} language - 语言
+   * @returns {Array} 增强后的搜索关键词
+   */
+  enhanceQueryWithSources(baseQuery, round = 1, language = 'zh') {
+    const sources = sourceConfig.getSourcesForQuery('general', language);
+    const enhanced = [baseQuery];
+
+    // 第1轮：添加权威信源
+    if (round === 1) {
+      const tier1Domains = sourceConfig.domestic.tier1.map(s => s.domain).slice(0, 3);
+      enhanced.push(`${baseQuery} site:${tier1Domains.join(' OR site:')}`);
+    }
+
+    // 第2轮：添加专业媒体
+    if (round === 2) {
+      const tier2Domains = sourceConfig.domestic.tier2.map(s => s.domain).slice(0, 3);
+      enhanced.push(`${baseQuery} site:${tier2Domains.join(' OR site:')}`);
+    }
+
+    // 第3轮：添加知识社区
+    if (round >= 3) {
+      const tier3Domains = sourceConfig.domestic.tier3.map(s => s.domain).slice(0, 2);
+      enhanced.push(`${baseQuery} site:${tier3Domains.join(' OR site:')}`);
+    }
+
+    return enhanced;
   }
 
   /**

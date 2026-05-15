@@ -78,7 +78,7 @@ async function readLogs(filter = {}) {
 
 /**
  * GET /api/logs/stats
- * 获取日志统计
+ * 获取日志统计（增强版 - 支持数据看板）
  */
 router.get('/stats', async (req, res) => {
   try {
@@ -87,14 +87,29 @@ router.get('/stats', async (req, res) => {
     let totalQueries = logs.length;
     let totalErrors = 0;
     let totalDuration = 0;
+    let totalRounds = 0;
+    let roundsCount = 0;
     const queryTypes = {};
     const dailyStats = {};
+    const intentDistribution = {};
+    const recentSearches = [];
 
     for (const entry of logs) {
       if (entry.error) totalErrors++;
       totalDuration += entry.duration || 0;
 
-      // 统计查询类型
+      // 统计搜索轮数
+      if (entry.rounds) {
+        totalRounds += entry.rounds;
+        roundsCount++;
+      }
+
+      // 统计意图类型分布
+      if (entry.queryIntent) {
+        intentDistribution[entry.queryIntent] = (intentDistribution[entry.queryIntent] || 0) + 1;
+      }
+
+      // 统计查询类型（兼容旧数据）
       const firstWord = entry.query.split(/[，。？\s]/)[0];
       queryTypes[firstWord] = (queryTypes[firstWord] || 0) + 1;
 
@@ -102,24 +117,47 @@ router.get('/stats', async (req, res) => {
       const date = entry.timestamp.split('T')[0];
       if (!dailyStats[date]) dailyStats[date] = 0;
       dailyStats[date]++;
+
+      // 收集最近搜索
+      if (!entry.error && entry.query) {
+        recentSearches.push({
+          query: entry.query,
+          intent: entry.queryIntent || 'unknown',
+          duration: entry.duration || 0,
+          timestamp: entry.timestamp
+        });
+      }
     }
 
+    // 计算成功率（没有错误即为成功）
+    const successCount = totalQueries - totalErrors;
+    const successRate = totalQueries > 0 ? successCount / totalQueries : 0;
+
+    // 计算平均搜索轮数
+    const avgRounds = roundsCount > 0 ? totalRounds / roundsCount : 0;
+
+    // 按时间戳排序最近搜索（取前20条）
+    recentSearches.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
     res.json({
-      success: true,
-      data: {
-        totalQueries,
-        totalErrors,
-        avgDuration: totalQueries > 0 ? Math.round(totalDuration / totalQueries) : 0,
-        errorRate: totalQueries > 0 ? ((totalErrors / totalQueries) * 100).toFixed(2) + '%' : '0%',
-        topQueries: Object.entries(queryTypes)
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, 10)
-          .map(([word, count]) => ({ word, count })),
-        dailyStats: Object.entries(dailyStats)
-          .sort((a, b) => a[0].localeCompare(b[0]))
-          .slice(-7)
-          .map(([date, count]) => ({ date, count }))
-      }
+      totalSearches: totalQueries,
+      avgDuration: totalQueries > 0 ? totalDuration / totalQueries / 1000 : 0, // 转换为秒
+      successRate,
+      avgRounds,
+      intentDistribution,
+      recentSearches: recentSearches.slice(0, 20),
+      // 保留原有字段以兼容
+      totalQueries,
+      totalErrors,
+      errorRate: totalQueries > 0 ? ((totalErrors / totalQueries) * 100).toFixed(2) + '%' : '0%',
+      topQueries: Object.entries(queryTypes)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10)
+        .map(([word, count]) => ({ word, count })),
+      dailyStats: Object.entries(dailyStats)
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .slice(-7)
+        .map(([date, count]) => ({ date, count }))
     });
   } catch (error) {
     res.status(500).json({

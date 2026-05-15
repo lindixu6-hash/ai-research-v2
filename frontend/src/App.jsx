@@ -108,6 +108,19 @@ function App() {
     executeSearch(query);
   };
 
+  // 示例查询
+  const exampleQueries = [
+    { q: "美国上班时间？", icon: "⏰", type: "简单信息型" },
+    { q: "AI PM需要什么技能？", icon: "🎯", type: "复杂信息型" },
+    { q: "iPhone vs Android 哪个好？", icon: "⚖️", type: "商业对比" },
+    { q: "分析2024年AI发展趋势", icon: "📊", type: "研究分析" }
+  ];
+
+  const handleExampleClick = (exampleQ) => {
+    setQuery(exampleQ);
+    executeSearch(exampleQ);
+  };
+
   return (
     <div className="app">
       {/* 头部 */}
@@ -119,6 +132,13 @@ function App() {
       >
         <h1>{t('home.title')}</h1>
         <p className="subtitle">{t('home.subtitle')}</p>
+
+        {/* 核心卖点 */}
+        <div className="feature-tags">
+          <span className="feature-tag">🎯 意图识别 · 8种类型</span>
+          <span className="feature-tag">🔄 自适应搜索 · 置信度驱动</span>
+          <span className="feature-tag">📎 来源透明 · 可点击引用</span>
+        </div>
       </motion.header>
 
       {/* 搜索区域 */}
@@ -181,6 +201,36 @@ function App() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* 示例查询 */}
+        {!result && activities.length === 0 && (
+          <motion.div
+            className="examples-section"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+          >
+            <p className="examples-hint">💡 试试这些查询：</p>
+            <div className="examples-grid">
+              {exampleQueries.map((example, i) => (
+                <motion.button
+                  key={i}
+                  className="example-card"
+                  onClick={() => handleExampleClick(example.q)}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.3 + i * 0.1 }}
+                  whileHover={{ scale: 1.02, y: -2 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <span className="example-icon">{example.icon}</span>
+                  <span className="example-query">{example.q}</span>
+                  <span className="example-type">{example.type}</span>
+                </motion.button>
+              ))}
+            </div>
+          </motion.div>
+        )}
 
         {/* 澄清问题 */}
         <AnimatePresence>
