@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>搜索日志管理 - AI 搜索引擎</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      min-height: 100vh;
+      color: #e4e4e7;
+      padding: 20px;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    h1 {
+      font-size: 24px;
+      margin-bottom: 20px;
+      color: #f0f0f0;
+    }
+    .card {
+      background: rgba(255,255,255,0.05);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+    .stat-item {
+      background: rgba(99, 102, 241, 0.2);
+      padding: 15px;
+      border-radius: 8px;
+      text-align: center;
+    }
+    .stat-value {
+      font-size: 28px;
+      font-weight: bold;
+      color: #818cf8;
+    }
+    .stat-label {
+      font-size: 12px;
+      color: #a1a1aa;
+      margin-top: 5px;
+    }
+    .filter-section {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+    input[type="datetime-local"], input[type="number"] {
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 6px;
+      padding: 8px 12px;
+      color: #e4e4e7;
+      font-size: 14px;
+    }
+    button {
+      background: #6366f1;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background 0.2s;
+    }
+    button:hover {
+      background: #4f46e5;
+    }
+    button.secondary {
+      background: rgba(255,255,255,0.1);
+    }
+    button.secondary:hover {
+      background: rgba(255,255,255,0.2);
+    }
+    .logs-list {
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    .log-item {
+      background: rgba(255,255,255,0.03);
+      padding: 12px;
+      margin-bottom: 8px;
+      border-radius: 6px;
+      font-size: 13px;
+    }
+    .log-query {
+      color: #818cf8;
+      font-weight: 500;
+      margin-bottom: 5px;
+    }
+    .log-meta {
+      color: #71717a;
+      font-size: 11px;
+    }
+    .empty-state {
+      text-align: center;
+      padding: 40px;
+      color: #71717a;
+    }
+    .quick-actions {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+    .tag {
+      display: inline-block;
+      background: rgba(99, 102, 241, 0.2);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      margin-right: 5px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📊 搜索日志管理</h1>
+
+    <!-- 统计卡片 -->
+    <div class="card">
+      <div class="stats-grid">
+        <div class="stat-item">
+          <div class="stat-value" id="totalQueries">-</div>
+          <div class="stat-label">总查询数</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value" id="avgDuration">-</div>
+          <div class="stat-label">平均耗时(ms)</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value" id="errorRate">-</div>
+          <div class="stat-label">错误率</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 快捷操作 -->
+    <div class="card">
+      <h3>快捷操作</h3>
+      <div class="quick-actions">
+        <button onclick="downloadToday()">📥 下载今日日志</button>
+        <button onclick="downloadWeek()">📥 下载本周日志</button>
+        <button onclick="downloadAll()">📥 下载全部日志</button>
+        <button class="secondary" onclick="refreshStats()">🔄 刷新统计</button>
+      </div>
+    </div>
+
+    <!-- 时间筛选 -->
+    <div class="card">
+      <h3>时间筛选</h3>
+      <div class="filter-section">
+        <label>开始时间：</label>
+        <input type="datetime-local" id="startTime">
+        <label>结束时间：</label>
+        <input type="datetime-local" id="endTime">
+        <button onclick="exportFiltered()">📥 按时间下载</button>
+        <button class="secondary" onclick="viewFiltered()">👁️ 查看记录</button>
+      </div>
+    </div>
+
+    <!-- 日志列表 -->
+    <div class="card">
+      <h3>最近记录</h3>
+      <div class="logs-list" id="logsList">
+        <div class="empty-state">加载中...</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = '/api/logs';
+
+    // 加载统计
+    async function loadStats() {
+      try {
+        const res = await fetch(`${API_BASE}/stats`);
+        const data = await res.json();
+        if (data.success) {
+          document.getElementById('totalQueries').textContent = data.data.totalQueries;
+          document.getElementById('avgDuration').textContent = data.data.avgDuration;
+          document.getElementById('errorRate').textContent = data.data.errorRate;
+        }
+      } catch (error) {
+        console.error('加载统计失败:', error);
+      }
+    }
+
+    // 加载最近日志
+    async function loadRecentLogs() {
+      try {
+        const res = await fetch(`${API_BASE}/export?limit=20`);
+        const data = await res.json();
+        if (data.success) {
+          renderLogs(data.data);
+        }
+      } catch (error) {
+        console.error('加载日志失败:', error);
+      }
+    }
+
+    // 渲染日志列表
+    function renderLogs(logs) {
+      const container = document.getElementById('logsList');
+      if (logs.length === 0) {
+        container.innerHTML = '<div class="empty-state">暂无记录</div>';
+        return;
+      }
+
+      container.innerHTML = logs.map(log => `
+        <div class="log-item">
+          <div class="log-query">"${log.query}"</div>
+          <div class="log-meta">
+            <span class="tag">${new Date(log.timestamp).toLocaleString('zh-CN')}</span>
+            <span class="tag">${log.duration}ms</span>
+            ${log.error ? '<span class="tag" style="background:rgba(239,68,68,0.2)">错误</span>' : '<span class="tag" style="background:rgba(34,197,94,0.2)">成功</span>'}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // 下载今日日志
+    function downloadToday() {
+      const today = new Date();
+      const start = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString().slice(0, 16);
+      const end = new Date().toISOString().slice(0, 16);
+      downloadLogs(start, end, `search_logs_today.jsonl`);
+    }
+
+    // 下载本周日志
+    function downloadWeek() {
+      const today = new Date();
+      const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+      downloadLogs(weekAgo.toISOString().slice(0, 16), today.toISOString().slice(0, 16), `search_logs_week.jsonl`);
+    }
+
+    // 下载全部日志
+    function downloadAll() {
+      window.location.href = `${API_BASE}/download`;
+    }
+
+    // 按时间筛选下载
+    function downloadFiltered() {
+      const start = document.getElementById('startTime').value;
+      const end = document.getElementById('endTime').value;
+      if (!start && !end) {
+        alert('请选择时间范围');
+        return;
+      }
+      const params = new URLSearchParams();
+      if (start) params.append('start', start);
+      if (end) params.append('end', end);
+      window.location.href = `${API_BASE}/download?${params.toString()}`;
+    }
+
+    // 查看筛选结果
+    async function viewFiltered() {
+      const start = document.getElementById('startTime').value;
+      const end = document.getElementById('endTime').value;
+      const params = new URLSearchParams();
+      if (start) params.append('start', start);
+      if (end) params.append('end', end);
+      if (!start && !end) params.append('limit', '50');
+
+      try {
+        const res = await fetch(`${API_BASE}/export?${params.toString()}`);
+        const data = await res.json();
+        if (data.success) {
+          renderLogs(data.data);
+        }
+      } catch (error) {
+        console.error('加载失败:', error);
+      }
+    }
+
+    // 刷新统计
+    function refreshStats() {
+      loadStats();
+      loadRecentLogs();
+    }
+
+    // 初始化
+    loadStats();
+    loadRecentLogs();
+  </script>
+</body>
+</html>

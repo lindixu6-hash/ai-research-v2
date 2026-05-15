@@ -5,6 +5,7 @@
 require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -32,6 +33,9 @@ app.use((req, res, next) => {
   console.log(`\n📡 ${req.method} ${req.path}`);
   next();
 });
+
+// 静态文件服务（日志管理页面）
+app.use('/logs', express.static(path.join(__dirname, '../public')));
 
 // 健康检查接口
 app.get('/health', (req, res) => {
