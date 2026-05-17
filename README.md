@@ -1,290 +1,241 @@
-# 🤖 AI 搜索引擎
+# AI Research v2
 
-**做一个能实时展示过程、会自己验证结果、来源可追溯的让人能用、敢用、放心用的 AI 搜索产品**
+一个面向研究、竞品分析和求职决策场景的 AI 搜索产品原型。
+
+它不只返回答案，还会展示搜索过程、给出来源引用，并根据问题类型自动调整搜索深度，尽量减少“黑箱搜索”和“正确的废话”。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
 [![React](https://img.shields.io/badge/React-18+-blue.svg)](https://reactjs.org/)
 
----
+## 在线体验
 
-## 📢 最新更新 (2026-05-15)
+- Demo: http://47.86.191.93
+- Repo: https://github.com/lindixu6-hash/ai-research-v2
 
-### 🚀 问题分类+分层回答 (PROMPT_V2)
-- **智能分类**: 5种问题类型自动识别（事实/预测/方法/对比/研究）
-- **分层回答**: 简单问题50字回答，复杂问题深度报告
-- **效果**: 事实查询 500字 → 50-100字
+## 项目定位
 
-### 🔥 性能大幅优化
-- **响应时间**: 45秒 → 10-15秒（并行搜索）
-- **URL 去重**: 避免重复结果
-- **多维度搜索策略**: 时间限定、site: 搜索源、对比分析
+这个仓库更适合作为一个 **AI PM / AI 应用产品作品集项目** 来看，而不只是一个搜索 Demo。
 
-### 🎯 搜索质量提升
-- **拒绝"正确的废话"**: 敢于下判断，给出明确结论
-- **SOUL 原则融入**: 帮到实处、有主见、准确第一
-- **结构化报告**: 技能学习/预测/对比类问题专属格式
+它重点展示的是：
 
-### 💾 状态持久化
-- 点击外部链接返回后，搜索结果保留
-- 使用 sessionStorage 自动保存/恢复状态
+- 能否识别真实用户痛点，而不是只堆功能
+- 能否把“搜索质量”拆成可设计、可验证、可迭代的模块
+- 能否把产品方案、提示词策略、搜索策略、前后端原型和部署串成闭环
 
----
+## 我想解决的问题
 
-## 🎯 为什么做这个项目？
+在调研 AI 搜索产品时，这几个问题反复出现：
 
-我对市面上 AI 搜索产品进行调研后，发现了三大痛点：
+1. 用户不知道系统到底搜了什么，过程黑箱
+2. 搜索结果质量不稳定，容易混入低质或错误内容
+3. 很多回答冗长、保守、不够直接，用户很难快速得到结论
 
-| 痛点 | 描述 | 影响 |
-|------|------|------|
-| **搜索过程黑箱化** | 用户不知道 AI 在做什么，用了哪些关键词去检索 | 体验差，不信任 |
-| **结果质量不稳定** | 脏数据、错误信息容易混入，时常出现幻觉 | 答案不可靠 |
-| **用户不信任** | 不知道信息从哪来，不敢用 | 不敢用、不能用 |
+所以这个项目的目标不是“做一个像 ChatGPT 一样什么都能答的系统”，而是：
 
-### 我的解决方案
+> 做一个更适合真实研究和决策场景的 AI 搜索产品，让用户更快拿到有来源、可验证、可继续追问的答案。
 
-针对这些痛点，我设计并实现了一个平衡型 AI 搜索产品：
+## 核心方案
 
-- **SSE 流式输出** → 实时展示搜索进度，让用户看到 AI 的思考过程
-- **结果验证 Agent** → 专门验证搜索结果质量，过滤脏数据
-- **来源标注** → 所有信息都标注来源，可追溯
+### 1. 意图识别 + 分层回答
 
----
+问题会先被识别为不同类型，例如：
 
-## ✨ 核心功能
+- 简单信息型
+- 复杂信息型
+- 商业对比型
+- 研究型
+- 多部分问题
 
-### 🔍 实时展示搜索进度
+不同类型的问题，会触发不同的搜索轮数、结果规模和回答深度，避免所有问题都被用同一种方式处理。
 
-通过 SSE（Server-Sent Events）流式输出，实时展示 AI 搜索的每个步骤：
+### 2. 自适应搜索
 
-```
-🚀 开始搜索...
-🔑 生成搜索关键词...
-🔍 搜索 (1/3): Python编程语言
-✅ 验证: 4/5 条有效
-📊 分析搜索结果...
-📝 生成研究报告...
-🎉 搜索完成！
-```
+系统不是固定搜一次就结束，而是会根据结果置信度动态决定是否继续搜索。
 
-### ✅ 结果验证 Agent
+- 结果少，继续搜
+- 来源不够权威，继续补
+- 相关性不足，再扩展关键词
 
-专门的验证机制，确保结果质量：
+对应实现见：
 
-- **内容长度检查**：过滤过短的无意义内容
-- **错误关键词过滤**：排除 404、页面不存在等无效结果
-- **URL 有效性验证**：确保链接可访问
-- **垃圾内容过滤**：排除纯广告内容
+- [services/adaptiveSearch.js](services/adaptiveSearch.js)
 
-```
-📊 Tavily 结果验证: 4/5 条有效（过滤了 1 条无效）
-```
+### 3. 流式搜索过程展示
 
-### 🏷️ 来源标注
+前端通过 SSE 实时展示搜索过程，例如：
 
-所有答案都标注信息来源，用户可追溯：
+- 开始搜索
+- 生成关键词
+- 执行搜索
+- 验证结果
+- 生成报告
 
-```
-💡 关键发现
-   Python 是一种解释型语言...
-   来源：Oracle 中国 | 可信度：高
-```
+这件事的价值不是“炫技”，而是降低用户对 AI 搜索黑箱的焦虑。
 
-### 🛡️ 三层兜底机制
+### 4. 来源引用与可追溯
 
-确保搜索永远有结果：
+答案中的引用会映射到具体来源，支持点击跳转。  
+这让“我为什么要相信这个答案”有了更好的解释路径。
 
-```
-第1层：Tavily（主搜索源，带重试）
-    ↓ 失败
-第2层：DuckDuckGo（备用，免费无密钥）
-    ↓ 失败
-第3层：兜底结果（引导用户手动搜索）
-```
+### 5. 澄清问题与反馈闭环
 
----
+对于模糊问题，系统支持先澄清再搜索；后端也预留了反馈、历史和统计接口，便于后续做搜索质量迭代。
 
-## 🏗️ 技术实现
+## 这个项目体现的能力
 
-### 架构设计
+如果把它当成 AI PM 求职项目，它比较能体现这几种能力：
 
-```
-用户提问
+- **问题定义能力**  
+  把“AI 搜索不好用”拆成透明度、质量、效率、信任四类问题
+
+- **产品设计能力**  
+  不是只做聊天框，而是设计了澄清、搜索、验证、引用、反馈的完整流程
+
+- **AI 应用理解能力**  
+  知道 LLM 不该直接裸答，而要结合搜索、置信度、来源管理和工作流编排
+
+- **技术协同能力**  
+  能把 PRD、搜索策略、提示词、前端交互、后端工作流和部署打通
+
+- **迭代意识**  
+  仓库里保留了多轮优化文档，能看见从 v1 到 v2 的思考过程
+
+## 关键功能
+
+### 用户侧
+
+- 搜索提问
+- 示例问题一键触发
+- 搜索过程流式展示
+- 引用可点击查看来源
+- 澄清问题弹窗
+- 搜索结果状态保留
+
+### 后端能力
+
+- `/api/search/v2` 优化版搜索接口
+- `/api/search/stream` 流式搜索接口
+- `/api/search/feedback` 用户反馈接口
+- `/api/search/history` 历史记录接口
+- `/api/search/stats` 统计接口
+
+## 架构概览
+
+```text
+React + Vite 前端
     ↓
-澄清问题（可选）
+SSE / REST API
     ↓
-生成搜索关键词
+Express 后端
     ↓
-多轮搜索 + 结果验证 ← 核心功能
+意图分类 / 工作流编排 / 自适应搜索 / 来源管理
     ↓
-分析提取关键信息
-    ↓
-生成研究报告（含来源）
+Tavily / DuckDuckGo / Moonshot(Kimi)
 ```
 
-### 技术栈
+关键代码入口：
 
-| 模块 | 技术方案 | 说明 |
-|------|----------|------|
-| 前端 | React 18 + Vite 5 | 现代化、开发体验好 |
-| 后端 | Node.js + Express | 轻量、易于部署 |
-| 流式输出 | SSE (Server-Sent Events) | 实时性好，比 WebSocket 简单 |
-| 搜索 API | Tavily + DuckDuckGo | Tavily 质量高，DuckDuckGo 兜底 |
-| AI 模型 | Moonshot/Kimi | 中文理解能力强，长上下文 |
+- 前端入口: [frontend/src/App.jsx](frontend/src/App.jsx)
+- 后端入口: [backend/src/app.js](backend/src/app.js)
+- 优化版搜索路由: [backend/src/routes/searchV2.js](backend/src/routes/searchV2.js)
+- 自适应搜索器: [services/adaptiveSearch.js](services/adaptiveSearch.js)
 
-### 核心代码
+## 目录结构
 
-**结果验证逻辑** (`backend/src/services/SearchService.js`):
-
-```javascript
-function validateResult(result) {
-  // 1. 基本字段检查
-  if (!result.title || !result.content) {
-    return { valid: false, reason: '缺少标题或内容' };
-  }
-
-  // 2. 内容长度检查
-  if (result.content.length < 20) {
-    return { valid: false, reason: '内容过短' };
-  }
-
-  // 3. 错误关键词过滤
-  const errorKeywords = ['404', 'Not Found', '页面不存在', '无法访问'];
-  if (errorKeywords.some(k => result.content.includes(k))) {
-    return { valid: false, reason: '包含错误关键词' };
-  }
-
-  // 4. URL 有效性检查
-  if (!result.url || !result.url.startsWith('http')) {
-    return { valid: false, reason: 'URL 无效' };
-  }
-
-  // 5. 垃圾内容过滤
-  const spamKeywords = ['广告', '立即购买', '优惠活动'];
-  if (spamKeywords.some(k => result.content.includes(k))) {
-    return { valid: false, reason: '疑似广告内容' };
-  }
-
-  return { valid: true };
-}
+```text
+ai-research-v2/
+├── frontend/              # React 前端
+├── backend/               # Express 后端
+├── services/              # 搜索、验证、意图分类等核心逻辑
+├── api/                   # 部署环境 API 入口
+├── docs/                  # PRD、竞品、Demo 文档
+├── tests/                 # 集成和策略测试
+└── README.md
 ```
 
----
+## 快速开始
 
-## 📦 安装运行
-
-### 克隆项目
+### 1. 克隆仓库
 
 ```bash
 git clone https://github.com/lindixu6-hash/ai-research-v2.git
 cd ai-research-v2
 ```
 
-### 后端安装
+### 2. 安装依赖
 
 ```bash
 cd backend
 npm install
-```
 
-### 前端安装
-
-```bash
-cd frontend
+cd ../frontend
 npm install
 ```
 
-### 配置环境变量
+### 3. 配置环境变量
 
-在 `backend/.env` 文件中配置：
+在 `backend/.env` 中配置：
 
 ```env
-# 服务器配置
-PORT=3000
+PORT=3001
 NODE_ENV=development
 
-# 搜索 API 配置
 SEARCH_API_KEY=your_tavily_api_key
 SEARCH_API_URL=https://api.tavily.com/search
 
-# 大模型 API 配置
 OPENAI_API_KEY=your_moonshot_api_key
 OPENAI_BASE_URL=https://api.moonshot.cn/v1
 MODEL_NAME=moonshot-v1-128k
 ```
 
-**获取 API 密钥：**
-- Tavily: https://tavily.com（免费额度 1000 次/月）
-- Moonshot: https://platform.moonshot.cn（新用户有免费额度）
+### 4. 启动项目
 
-### 启动服务
+后端：
 
-**后端**：
 ```bash
 cd backend
-npm start
+npm run dev
 ```
 
-**前端**：
+前端：
+
 ```bash
 cd frontend
 npm run dev
 ```
 
-访问：http://localhost:5173
+默认访问：
 
----
+- Frontend: `http://localhost:5173`
+- Backend health: `http://localhost:3001/health`
 
-## 📡 API 接口
+## 配套文档
 
-### 健康检查
+- PRD: [docs/PRD.md](docs/PRD.md)
+- Demo 场景: [docs/DEMO_CASES.md](docs/DEMO_CASES.md)
+- 竞品分析: [docs/竞品分析.md](docs/%E7%AB%9E%E5%93%81%E5%88%86%E6%9E%90.md)
+- 开源拆解: [docs/开源项目拆解.md](docs/%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AE%E6%8B%86%E8%A7%A3.md)
+- 架构说明: [ARCHITECTURE_FLOW.md](ARCHITECTURE_FLOW.md)
 
-```
-GET /health
-```
+## 面试时可以重点展开的点
 
-### 流式搜索
+如果你用这个项目做 AI PM / AI 应用产品岗位作品集，比较适合重点聊这几件事：
 
-```
-POST /api/search/stream
-Content-Type: application/json
+1. 为什么用户在 AI 搜索里需要“来源透明”和“过程可见”
+2. 为什么要先做意图分类，再决定搜索深度和回答方式
+3. 为什么“继续搜不继续搜”应该由置信度驱动
+4. 为什么这个项目既是产品方案，也是一个可运行原型
+5. 如果继续迭代，应该怎样做 eval、反馈闭环和搜索质量看板
 
-{
-  "query": "Python编程语言特点"
-}
-```
+## 下一步优化
 
-以 SSE 格式流式返回结果，包含以下事件类型：
+- 增加更明确的评测体系和答案质量 eval
+- 完善来源质量评分与排序策略
+- 增加用户账户、历史记录与导出能力
+- 建立更稳定的反馈数据闭环
+- 为不同场景提供更细的行业模板
 
-| 事件 | 说明 |
-|------|------|
-| `start` | 开始搜索 |
-| `step` | 进度更新 |
-| `queries_generated` | 关键词生成完成 |
-| `search_result` | 搜索结果返回 |
-| `validation` | 结果验证统计 |
-| `clarify` | 需要澄清问题 |
-| `report` | 最终报告 |
-| `error` | 错误信息 |
+## License
 
----
-
-## 🌐 在线演示
-
-- **生产环境**: http://47.86.191.93
-- **前端预览**: https://ai-search-project.vercel.app
-- **GitHub**: https://github.com/lindixu6-hash/ai-research-v2
-
----
-
-## 📄 许可证
-
-MIT License
-
----
-
-## 📮 联系方式
-
-- GitHub: [@lindixu6-hash](https://github.com/lindixu6-hash)
-
-⭐ 如果这个项目对你有帮助，请给个 Star！
+MIT
